@@ -1,0 +1,172 @@
+local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+
+local Options = Library.Options
+local Toggles = Library.Toggles
+
+Library.ForceCheckbox = false
+Library.ShowToggleFrameInKeybinds = true
+
+local Window = Library:CreateWindow({
+	Title = "Volume - Rivals",
+	Footer = "version: 1.0.0",
+	Icon = 95816097006870,
+	NotifySide = "Right",
+	ShowCustomCursor = true,
+	
+	-- 컴팩트한 창 크기 및 위치 설정
+	Size = UDim2.fromOffset(550, 420),
+	Position = UDim2.new(0.5, -275, 0.5, -210),
+})
+
+local Tabs = {
+	Main = Window:AddTab("Main", "crosshair"),
+	["UI Settings"] = Window:AddTab("UI Settings", "settings"),
+}
+
+-- [Main 탭] 에임락 (Aimlock) 그룹박스 (왼쪽)
+local AimGroup = Tabs.Main:AddGroupbox({
+	Side = "Left",
+	Name = "Aimlock",
+	IconName = "crosshair",
+})
+
+AimGroup:AddToggle("AimlockEnabled", {
+	Text = "Enable Aimlock",
+	Default = false,
+	Callback = function(Value)
+		print("[Aimlock] Enabled:", Value)
+	end,
+}):AddKeyPicker("AimlockKey", {
+	Default = "Q",
+	Mode = "Hold",
+	Text = "Aimlock Key",
+	NoUI = false,
+})
+
+AimGroup:AddDropdown("AimlockPart", {
+	Values = { "Head", "HumanoidRootPart", "UpperTorso" },
+	Default = 1,
+	Text = "Target Part",
+	Callback = function(Value)
+		print("[Aimlock] Target Part:", Value)
+	end,
+})
+
+AimGroup:AddSlider("AimlockFOV", {
+	Text = "FOV Radius",
+	Default = 100,
+	Min = 10,
+	Max = 300,
+	Rounding = 0,
+	Callback = function(Value)
+		print("[Aimlock] FOV Radius:", Value)
+	end,
+})
+
+AimGroup:AddToggle("AimlockDrawFOV", {
+	Text = "Draw FOV Circle",
+	Default = true,
+	Callback = function(Value)
+		print("[Aimlock] Draw FOV:", Value)
+	end,
+})
+
+-- [Main 탭] 오른쪽 그룹박스 (Ragebot ting & Void Spam 통합)
+local RightGroup = Tabs.Main:AddGroupbox({
+	Side = "Right",
+	Name = "Combat Mods",
+	IconName = "zap",
+})
+
+-- Ragebot ting 기능
+RightGroup:AddToggle("RagebotEnabled", {
+	Text = "Enable Ragebot ting",
+	Default = false,
+	Callback = function(Value)
+		print("[Ragebot ting] Enabled:", Value)
+	end,
+})
+
+-- Void Spam 기능 추가
+RightGroup:AddToggle("VoidSpamEnabled", {
+	Text = "Enable Void Spam",
+	Default = false,
+	Callback = function(Value)
+		print("[Void Spam] Enabled:", Value)
+	end,
+})
+
+-- 1초마다 바닥 아래로 숨었다가 위로 올라오는 루프 (Ragebot ting)
+task.spawn(function()
+	local hiddenState = false
+	local savedPos = nil
+	while true do
+		task.wait(1)
+		if Library.Unloaded then 
+			break 
+		end
+		
+		local player = game.Players.LocalPlayer
+		local character = player and player.Character
+		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+		
+		if Toggles.RagebotEnabled and Toggles.RagebotEnabled.Value and rootPart then
+			if not savedPos then
+				savedPos = rootPart.CFrame
+			end
+			
+			hiddenState = not hiddenState
+			if hiddenState then
+				rootPart.CFrame = savedPos - Vector3.new(0, 10, 0)
+			else
+				rootPart.CFrame = savedPos
+			end
+		else
+			savedPos = nil
+		end
+	end
+end)
+
+-- 보이드 스팸(Void Spam) 백그라운드 로직 연결
+game:GetService("RunService").Heartbeat:Connect(function(dt)
+	if Library.Unloaded then return end
+	if not Toggles.VoidSpamEnabled or not Toggles.VoidSpamEnabled.Value then return end
+	
+	local player = game.Players.LocalPlayer
+	local character = player and player.Character
+	if not character then return end
+	
+	local rootPart = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not rootPart or not humanoid then return end
+	
+	if humanoid:GetState() == Enum.HumanoidStateType.Dead then return end
+	
+	local randomOffset = (math.random() - 0.5) * 15
+	local currentVelocity = rootPart.AssemblyLinearVelocity
+	
+	rootPart.AssemblyLinearVelocity = Vector3.new(
+		currentVelocity.X + (math.random(-10, 10)),
+		randomOffset * 3,
+		currentVelocity.Z + (math.random(-10, 10))
+	)
+end)
+
+-- 하단 메뉴 / 언로드 버튼 그룹박스
+local GeneralGroup = Tabs.Main:AddGroupbox({
+	Side = "Right",
+	Name = "Menu",
+	IconName = "wrench",
+})
+
+GeneralGroup:AddButton("Unload Script", function()
+	Library:Unload()
+end)
+
+-- UI 메뉴 토글 키 (기본 오른쪽 Shift)
+Library.ToggleKeybind = Enum.KeyCode.RightShift
+
+Library:OnUnload(function()
+	print("Unloaded!")
+end)
